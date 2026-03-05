@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Data Updater</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --brand:#0e64ac; --dark:#0a4a7e; --darker:#0d1f2d;
+  --tint:#e8f1f8; --bg:#f4f8fc; --card:#ffffff;
+  --mu:#5a7a90; --border:#c2d6e8; --text:#0d1f2d;
+}
+body { font-family:'IBM Plex Sans',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+
+.u-header { background:var(--darker); padding:1.1rem 2rem; border-bottom:3px solid var(--brand); display:flex; align-items:center; justify-content:space-between; }
+.u-title { font-family:'Playfair Display',serif; font-size:1.2rem; color:#fff; }
+.u-sub { font-family:'IBM Plex Mono',monospace; font-size:.6rem; color:var(--mu); text-transform:uppercase; letter-spacing:.1em; margin-top:.15rem; }
+.u-signout { font-family:'IBM Plex Mono',monospace; font-size:.68rem; padding:.35rem .8rem; border:1.5px solid #1a3a58; border-radius:3px; background:transparent; color:var(--mu); cursor:pointer; transition:all .15s; }
+.u-signout:hover { border-color:var(--border); color:var(--text); }
+
+/* Login */
+#login-screen { display:flex; align-items:center; justify-content:center; min-height:calc(100vh - 60px); padding:2rem; }
+.login-box { background:var(--card); border:1.5px solid var(--border); border-radius:6px; padding:2.5rem; width:100%; max-width:400px; }
+.login-box h2 { font-family:'Playfair Display',serif; font-size:1.2rem; margin-bottom:.3rem; }
+.login-box p { font-size:.8rem; color:var(--mu); margin-bottom:1.75rem; }
+.f-lbl { font-family:'IBM Plex Mono',monospace; font-size:.62rem; text-transform:uppercase; letter-spacing:.1em; color:var(--mu); display:block; margin-bottom:.3rem; margin-top:.9rem; }
+.f-in { width:100%; padding:.55rem .75rem; border:1.5px solid var(--border); border-radius:3px; font-family:'IBM Plex Mono',monospace; font-size:.83rem; color:var(--text); outline:none; transition:border-color .15s; }
+.f-in:focus { border-color:var(--brand); }
+.btn-primary { margin-top:1.4rem; width:100%; padding:.6rem; background:var(--brand); color:#fff; border:none; border-radius:3px; font-family:'IBM Plex Mono',monospace; font-size:.75rem; cursor:pointer; letter-spacing:.06em; transition:background .15s; }
+.btn-primary:hover { background:var(--dark); }
+.btn-primary:disabled { opacity:.5; cursor:not-allowed; }
+.login-err { font-family:'IBM Plex Mono',monospace; font-size:.7rem; color:#c0390a; margin-top:.65rem; display:none; }
+.login-err.show { display:block; }
+.login-note { font-size:.68rem; color:var(--mu); margin-top:1.1rem; line-height:1.5; }
+.login-note code { background:var(--tint); padding:.1em .35em; border-radius:2px; font-family:'IBM Plex Mono',monospace; font-size:.85em; }
+
+/* Main */
+#app { display:none; }
+.u-main { max-width:820px; margin:0 auto; padding:2rem 1.5rem; }
+.u-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.25rem; }
+.u-panel { background:var(--card); border:1.5px solid var(--border); border-radius:6px; padding:1.4rem; }
+.u-panel-title { font-family:'Playfair Display',serif; font-size:.95rem; font-weight:700; margin-bottom:.25rem; }
+.u-panel-sub { font-family:'IBM Plex Mono',monospace; font-size:.6rem; color:var(--mu); margin-bottom:1.1rem; }
+.u-panel-sub span { background:var(--tint); padding:.1em .4em; border-radius:2px; }
+
+.f-row { display:flex; gap:.6rem; }
+.f-row .f-field { flex:1; }
+.f-field { display:flex; flex-direction:column; gap:.3rem; margin-bottom:.75rem; }
+.f-field:last-child { margin-bottom:0; }
+
+.btn-save { width:100%; margin-top:.9rem; padding:.55rem; background:var(--brand); color:#fff; border:none; border-radius:3px; font-family:'IBM Plex Mono',monospace; font-size:.72rem; cursor:pointer; letter-spacing:.05em; transition:background .15s; }
+.btn-save:hover { background:var(--dark); }
+.btn-save:disabled { opacity:.5; cursor:not-allowed; }
+
+.u-status { font-family:'IBM Plex Mono',monospace; font-size:.7rem; padding:.55rem .8rem; border-radius:3px; margin-top:.65rem; display:none; }
+.u-status.show { display:block; }
+.u-status.saving { background:var(--tint); color:var(--mu); }
+.u-status.ok     { background:#e8f5ee; color:#1a7a4a; }
+.u-status.error  { background:#fceee8; color:#7a1a1a; }
+
+/* Recent values table */
+.u-recent { margin-top:1rem; }
+.u-recent-title { font-family:'IBM Plex Mono',monospace; font-size:.6rem; text-transform:uppercase; letter-spacing:.1em; color:var(--mu); margin-bottom:.5rem; }
+.u-tbl { width:100%; border-collapse:collapse; font-size:.78rem; }
+.u-tbl th { font-family:'IBM Plex Mono',monospace; font-size:.6rem; text-transform:uppercase; letter-spacing:.08em; background:var(--darker); color:#f4f8fc; padding:.45rem .7rem; text-align:left; }
+.u-tbl td { padding:.4rem .7rem; border-bottom:1px solid var(--border); }
+.u-tbl tr:nth-child(even) td { background:var(--tint); }
+
+.u-footer { margin-top:1.5rem; font-family:'IBM Plex Mono',monospace; font-size:.58rem; color:var(--mu); text-align:right; }
+
+@media(max-width:600px){ .u-grid{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+
+<div class="u-header">
+  <div>
+    <div class="u-title">Dashboard Data Updater</div>
+    <div class="u-sub">Canada Economic Dashboard</div>
+  </div>
+  <button class="u-signout" id="signout-btn" style="display:none">Sign Out</button>
+</div>
+
+<!-- Login -->
+<div id="login-screen">
+  <div class="login-box">
+    <h2>Sign In</h2>
+    <p>Enter your GitHub credentials to update dashboard data.</p>
+
+    <label class="f-lbl">GitHub Username</label>
+    <input class="f-in" type="text" id="gh-user" placeholder="your-username" autocomplete="username">
+
+    <label class="f-lbl">Repository Name</label>
+    <input class="f-in" type="text" id="gh-repo" placeholder="your-repo-name" autocomplete="off">
+
+    <label class="f-lbl">Personal Access Token <span style="color:var(--mu);font-weight:300">(contents:write)</span></label>
+    <input class="f-in" type="password" id="gh-token" placeholder="ghp_…" autocomplete="current-password">
+
+    <label class="f-lbl">Admin Password</label>
+    <input class="f-in" type="password" id="admin-pw" placeholder="Set in the script below">
+
+    <button class="btn-primary" id="login-btn">Sign In</button>
+    <div class="login-err" id="login-err"></div>
+    <p class="login-note">
+      Your token is stored in <code>sessionStorage</code> only and is never sent anywhere except GitHub's API.<br>
+      Create a token at <code>github.com/settings/tokens</code> with <code>repo</code> scope.
+    </p>
+  </div>
+</div>
+
+<!-- Main app -->
+<div id="app">
+<div class="u-main">
+  <div class="u-grid">
+
+    <!-- Inflation -->
+    <div class="u-panel">
+      <div class="u-panel-title">Inflation Rate</div>
+      <div class="u-panel-sub">File: <span>data/inflation.csv</span> &nbsp;·&nbsp; Monthly, YYYY-MM-DD</div>
+      <div class="f-field">
+        <label class="f-lbl">Month <span style="color:#c0390a">*</span></label>
+        <input class="f-in" type="month" id="inf-date">
+      </div>
+      <div class="f-field">
+        <label class="f-lbl">CPI YoY Rate (%)</label>
+        <input class="f-in" type="number" id="inf-val" step="0.1" placeholder="e.g. 2.3">
+      </div>
+      <button class="btn-save" data-key="inflation">Save Inflation Entry</button>
+      <div class="u-status" id="st-inflation"></div>
+      <div class="u-recent" id="recent-inflation"></div>
+    </div>
+
+    <!-- Unemployment -->
+    <div class="u-panel">
+      <div class="u-panel-title">Unemployment Rate</div>
+      <div class="u-panel-sub">File: <span>data/unemployment.csv</span> &nbsp;·&nbsp; Monthly, YYYY-MM-DD</div>
+      <div class="f-field">
+        <label class="f-lbl">Month <span style="color:#c0390a">*</span></label>
+        <input class="f-in" type="month" id="unemp-date">
+      </div>
+      <div class="f-field">
+        <label class="f-lbl">Unemployment Rate (%)</label>
+        <input class="f-in" type="number" id="unemp-val" step="0.1" placeholder="e.g. 6.5">
+      </div>
+      <button class="btn-save" data-key="unemployment">Save Unemployment Entry</button>
+      <div class="u-status" id="st-unemployment"></div>
+      <div class="u-recent" id="recent-unemployment"></div>
+    </div>
+
+    <!-- Population -->
+    <div class="u-panel">
+      <div class="u-panel-title">Population</div>
+      <div class="u-panel-sub">File: <span>data/population.csv</span> &nbsp;·&nbsp; Annual, YYYY</div>
+      <div class="f-field">
+        <label class="f-lbl">Year <span style="color:#c0390a">*</span></label>
+        <input class="f-in" type="number" id="pop-date" placeholder="e.g. 2025" min="1900" max="2100">
+      </div>
+      <div class="f-field">
+        <label class="f-lbl">Population</label>
+        <input class="f-in" type="number" id="pop-val" placeholder="e.g. 41500000">
+      </div>
+      <button class="btn-save" data-key="population">Save Population Entry</button>
+      <div class="u-status" id="st-population"></div>
+      <div class="u-recent" id="recent-population"></div>
+    </div>
+
+    <!-- GDP -->
+    <div class="u-panel">
+      <div class="u-panel-title">GDP</div>
+      <div class="u-panel-sub">File: <span>data/gdp.csv</span> &nbsp;·&nbsp; Annual, YYYY &nbsp;·&nbsp; Billions CAD</div>
+      <div class="f-field">
+        <label class="f-lbl">Year <span style="color:#c0390a">*</span></label>
+        <input class="f-in" type="number" id="gdp-date" placeholder="e.g. 2025" min="1900" max="2100">
+      </div>
+      <div class="f-field">
+        <label class="f-lbl">GDP (Billions CAD)</label>
+        <input class="f-in" type="number" id="gdp-val" step="0.1" placeholder="e.g. 3050.5">
+      </div>
+      <button class="btn-save" data-key="gdp">Save GDP Entry</button>
+      <div class="u-status" id="st-gdp"></div>
+      <div class="u-recent" id="recent-gdp"></div>
+    </div>
+
+  </div>
+  <div class="u-footer" id="u-repo-label"></div>
+</div>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+// ── Set your admin password here ──────────────────────────────────
+var ADMIN_PASSWORD = 'changeme123';
+// ─────────────────────────────────────────────────────────────────
+
+var FILE_CONFIG = {
+  inflation:    { path:'data/inflation.csv',    dateCol:'date',  valCol:'rate_pct',         dateType:'month' },
+  unemployment: { path:'data/unemployment.csv', dateCol:'date',  valCol:'rate_pct',         dateType:'month' },
+  population:   { path:'data/population.csv',   dateCol:'year',  valCol:'value',            dateType:'year'  },
+  gdp:          { path:'data/gdp.csv',          dateCol:'year',  valCol:'value_billions_cad',dateType:'year' }
+};
+
+var INPUT_MAP = {
+  inflation:    { date:'inf-date',   val:'inf-val'   },
+  unemployment: { date:'unemp-date', val:'unemp-val' },
+  population:   { date:'pop-date',   val:'pop-val'   },
+  gdp:          { date:'gdp-date',   val:'gdp-val'   }
+};
+
+var state = { user:null, repo:null, token:null };
+var csvCache = {};  // key -> { content, sha }
+
+// ── Login ─────────────────────────────────────────────────────────
+var saved = sessionStorage.getItem('du_creds');
+if (saved) { try { var s=JSON.parse(saved); document.getElementById('gh-user').value=s.user||''; document.getElementById('gh-repo').value=s.repo||''; document.getElementById('gh-token').value=s.token||''; } catch(e){} }
+
+document.getElementById('login-btn').addEventListener('click', function(){
+  var user  = document.getElementById('gh-user').value.trim();
+  var repo  = document.getElementById('gh-repo').value.trim();
+  var token = document.getElementById('gh-token').value.trim();
+  var pw    = document.getElementById('admin-pw').value;
+  var errEl = document.getElementById('login-err');
+  errEl.className = 'login-err';
+
+  if (!user||!repo||!token) { showLoginErr('Please fill in all fields.'); return; }
+  if (pw !== ADMIN_PASSWORD) { showLoginErr('Incorrect admin password.'); return; }
+
+  document.getElementById('login-btn').disabled = true;
+  document.getElementById('login-btn').textContent = 'Connecting…';
+
+  // Verify token by fetching one file
+  ghGet(user, repo, token, 'data/inflation.csv', function(err){
+    document.getElementById('login-btn').disabled = false;
+    document.getElementById('login-btn').textContent = 'Sign In';
+    if (err && err.indexOf('404') === -1 && err.indexOf('not found') === -1) {
+      showLoginErr('GitHub error: '+err); return;
+    }
+    state = { user:user, repo:repo, token:token };
+    sessionStorage.setItem('du_creds', JSON.stringify(state));
+    showApp();
+  });
+});
+
+function showLoginErr(msg) { var e=document.getElementById('login-err'); e.className='login-err show'; e.textContent=msg; }
+
+document.getElementById('signout-btn').addEventListener('click', function(){
+  sessionStorage.removeItem('du_creds');
+  document.getElementById('app').style.display='none';
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('signout-btn').style.display='none';
+});
+
+// ── GitHub API helpers ────────────────────────────────────────────
+function ghHeaders(token) {
+  return { 'Authorization':'token '+token, 'Accept':'application/vnd.github.v3+json', 'Content-Type':'application/json' };
+}
+
+function ghGet(user, repo, token, path, cb) {
+  fetch('https://api.github.com/repos/'+user+'/'+repo+'/contents/'+path, { headers:ghHeaders(token) })
+    .then(function(r){ return r.json(); })
+    .then(function(d){ if (d.message) { cb(d.message); return; } cb(null, d); })
+    .catch(function(e){ cb(e.message); });
+}
+
+function ghPut(user, repo, token, path, content, sha, message, cb) {
+  fetch('https://api.github.com/repos/'+user+'/'+repo+'/contents/'+path, {
+    method: 'PUT',
+    headers: ghHeaders(token),
+    body: JSON.stringify({ message:message, content:btoa(content), sha:sha })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(d){ if (d.message) { cb(d.message); return; } cb(null, d.content.sha); })
+  .catch(function(e){ cb(e.message); });
+}
+
+// ── CSV helpers ───────────────────────────────────────────────────
+function parseCSV(text) {
+  var lines = text.trim().split('\n');
+  var hdrs  = lines[0].split(',').map(function(h){ return h.trim(); });
+  return {
+    headers: hdrs,
+    rows: lines.slice(1).map(function(l){
+      var vals = l.split(','); var o={};
+      hdrs.forEach(function(h,i){ o[h]=(vals[i]||'').trim(); }); return o;
+    }).filter(function(r){ return r[hdrs[0]]; })
+  };
+}
+
+function toCSV(headers, rows) {
+  return headers.join(',')+'\n'+rows.map(function(r){ return headers.map(function(h){ return r[h]||''; }).join(','); }).join('\n')+'\n';
+}
+
+// ── Show app & load CSVs ──────────────────────────────────────────
+function showApp() {
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').style.display='block';
+  document.getElementById('signout-btn').style.display='block';
+  document.getElementById('u-repo-label').textContent = state.user+'/'+state.repo;
+
+  Object.keys(FILE_CONFIG).forEach(function(key){ loadCSV(key); });
+}
+
+function loadCSV(key) {
+  var cfg = FILE_CONFIG[key];
+  ghGet(state.user, state.repo, state.token, cfg.path, function(err, data){
+    if (err || !data) { csvCache[key] = { content:'', sha:null, parsed:{ headers:[], rows:[] } }; return; }
+    var content = atob(data.content.replace(/\n/g,''));
+    var parsed  = parseCSV(content);
+    csvCache[key] = { content:content, sha:data.sha, parsed:parsed };
+    renderRecent(key, parsed);
+  });
+}
+
+function renderRecent(key, parsed) {
+  var cfg = FILE_CONFIG[key];
+  var el  = document.getElementById('recent-'+key);
+  if (!el) return;
+  var rows = parsed.rows.slice(-5).reverse();
+  if (!rows.length) { el.innerHTML=''; return; }
+  el.innerHTML = '<div class="u-recent-title">Last 5 entries</div>'
+    +'<table class="u-tbl"><thead><tr>'
+    +'<th>'+cfg.dateCol+'</th><th>'+cfg.valCol+'</th>'
+    +'</tr></thead><tbody>'
+    +rows.map(function(r){
+      return '<tr><td>'+r[cfg.dateCol]+'</td><td>'+r[cfg.valCol]+'</td></tr>';
+    }).join('')
+    +'</tbody></table>';
+}
+
+// ── Save button ───────────────────────────────────────────────────
+document.querySelectorAll('.btn-save').forEach(function(btn){
+  btn.addEventListener('click', function(){
+    var key = btn.dataset.key;
+    var cfg = FILE_CONFIG[key];
+    var inp = INPUT_MAP[key];
+    var dateRaw = document.getElementById(inp.date).value.trim();
+    var valRaw  = document.getElementById(inp.val).value.trim();
+
+    if (!dateRaw || !valRaw) { showStatus(key,'error','Please fill in both fields.'); return; }
+
+    // Format date
+    var dateStr;
+    if (cfg.dateType === 'month') {
+      // input[type=month] returns YYYY-MM, append -01
+      dateStr = dateRaw.length === 7 ? dateRaw+'-01' : dateRaw;
+    } else {
+      dateStr = dateRaw; // year as YYYY
+    }
+
+    var cached = csvCache[key];
+    if (!cached) { showStatus(key,'error','CSV not loaded yet. Please wait.'); return; }
+
+    var parsed  = cached.parsed;
+    var headers = parsed.headers.length ? parsed.headers : [cfg.dateCol, cfg.valCol];
+    var rows    = parsed.rows.slice();
+
+    // Check for duplicate date — update in place or append
+    var existIdx = rows.findIndex(function(r){ return r[cfg.dateCol] === dateStr; });
+    var newRow   = {}; newRow[cfg.dateCol]=dateStr; newRow[cfg.valCol]=valRaw;
+
+    if (existIdx > -1) { rows[existIdx] = newRow; }
+    else { rows.push(newRow); }
+
+    // Sort by date column
+    rows.sort(function(a,b){ return a[cfg.dateCol].localeCompare(b[cfg.dateCol]); });
+
+    var newContent = toCSV(headers, rows);
+    showStatus(key,'saving','Saving to GitHub…');
+    btn.disabled = true;
+
+    var sha = cached.sha || undefined;
+    var commitMsg = 'Update '+cfg.path+' — add/update '+dateStr;
+    ghPut(state.user, state.repo, state.token, cfg.path, newContent, sha, commitMsg, function(err, newSha){
+      btn.disabled = false;
+      if (err) { showStatus(key,'error','GitHub error: '+err); return; }
+      // Update cache
+      csvCache[key] = { content:newContent, sha:newSha, parsed:parseCSV(newContent) };
+      renderRecent(key, csvCache[key].parsed);
+      document.getElementById(inp.date).value = '';
+      document.getElementById(inp.val).value  = '';
+      showStatus(key,'ok','Saved — entry for '+dateStr+' committed to GitHub.');
+    });
+  });
+});
+
+function showStatus(key, type, msg) {
+  var el = document.getElementById('st-'+key);
+  el.className = 'u-status show '+type; el.textContent = msg;
+  if (type==='ok') setTimeout(function(){ el.className='u-status'; }, 4000);
+}
+
+// Set today's month as default for monthly inputs
+var nowMonth = new Date().toISOString().slice(0,7);
+document.getElementById('inf-date').value   = nowMonth;
+document.getElementById('unemp-date').value = nowMonth;
+var nowYear = new Date().getFullYear();
+document.getElementById('pop-date').value   = nowYear;
+document.getElementById('gdp-date').value   = nowYear;
+
+})();
+</script>
+</body>
+</html>
